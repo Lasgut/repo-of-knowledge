@@ -14,6 +14,12 @@ add_message_files(
     complex.msg
 )
 
+## Generated services in the srv folder
+add_service_files(
+    FILES
+    add_two_ints.srv
+)
+
 ## Dependencies needed by the costume message
 generate_messages(
     DEPENDENCIES

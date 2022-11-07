@@ -1,0 +1,6 @@
+# input
+int64 a
+int64 b
+---
+# output
+int64 sum

@@ -14,10 +14,11 @@ def talker():
     rate = rospy.Rate(10)                                   # 10hz
     while not rospy.is_shutdown():
         hello_str = "hello world %s" % rospy.get_time()
-        rospy.loginfo(hello_str)
+        rospy.loginfo(hello_str)                            # prints to screen, written to the nodes log file and rosout (rqt_console)
         pub.publish(hello_str)
         rate.sleep()
 
+# dont accidentally execute code after sleep()
 if __name__ == '__main__':
     try:
         talker()
