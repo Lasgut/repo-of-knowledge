@@ -7,7 +7,7 @@ import actionlib
 from costum_msg.msg import TimerAction, TimerGoal, TimerResult
 
 rospy.init_node('timer_action_client')
-client = actionlib.SimpleActionClient('timer', TimerAction)
+client = actionlib.SimpleActionClient('timer', TimerAction) # (name, type)
 client.wait_for_server()
 goal = TimerGoal()
 goal.time_to_wait = rospy.Duration.from_sec(5.0)
