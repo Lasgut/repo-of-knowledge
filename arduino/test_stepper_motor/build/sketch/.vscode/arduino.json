@@ -1,8 +1,0 @@
-#line 1 "C:\\Users\\lmgut\\OneDrive\\Programmering\\Arduino\\test_stepper_motor\\.vscode\\arduino.json"
-{
-    "sketch": "test_stepper_motor.ino",
-    "output": "build",
-    "configuration": "cpu=atmega2560",
-    "board": "arduino:avr:mega",
-    "port": "COM3"
-}
