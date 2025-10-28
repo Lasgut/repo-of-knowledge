@@ -1,0 +1,31 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "-Iheaders",                          // Include headers directory
+                "${workspaceFolder}/Main.cpp",        // Main source file
+                "${workspaceFolder}/sources/*.cpp",   // Source files directory
+                "-o", "${workspaceFolder}/main.exe",  // Output executable
+                "-mwindows",                          // Ensure it's a Windows GUI application (to avoid console)
+                "-lgdi32",                            // Link GDI32 library
+                "-g"                                  // Include debugging symbols
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        }
+    ]
+}

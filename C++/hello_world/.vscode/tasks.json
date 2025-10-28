@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "-Iheaders",       // Include headers directory
+                "Main.cpp",        // Main source file
+                "sources/*.cpp",   // All source files in the sources directory
+                "-o", "main.exe",  // Output executable in the project root
+                "-mconsole",       // Specify that this is a console application
+                "-g"               // Include debugging symbols
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        }
+    ]
+}
