@@ -4,39 +4,49 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-UdpClient::UdpClient(const std::string &serverIp, int port) {
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd < 0) {
-        perror("Socket creation failed");
-        exit(EXIT_FAILURE);
-    }
-
+UdpClient::UdpClient(const std::string &serverIp, int port) 
+    : UdpBase(port)
+{
     memset(&servaddr, 0, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(port);
 
     if (inet_pton(AF_INET, serverIp.c_str(), &servaddr.sin_addr) <= 0) {
         perror("Invalid address");
-        close(sockfd);
+        close(socketFileDescriptor_);
         exit(EXIT_FAILURE);
     }
 }
 
-UdpClient::~UdpClient() {
-    close(sockfd);
-}
 
-void UdpClient::sendMessage(const std::string &message) {
-    sendto(sockfd, message.c_str(), message.size(), MSG_CONFIRM,
-           (const struct sockaddr *)&servaddr, sizeof(servaddr));
+void 
+UdpClient::sendMessage(const std::string &message) 
+{
+    sendto(
+        socketFileDescriptor_, 
+        message.c_str(), 
+        message.size(), 
+        0,
+        (const struct sockaddr *)&servaddr, 
+        sizeof(servaddr)
+    );
     std::cout << "Message sent: " << message << std::endl;
 }
 
-std::string UdpClient::receiveMessage() {
-    char buffer[1024];
+
+std::string 
+UdpClient::receiveMessage() 
+{
+    char buffer[bufferSize_];
     socklen_t len = sizeof(servaddr);
-    int n = recvfrom(sockfd, buffer, sizeof(buffer) - 1, MSG_WAITALL,
-                     (struct sockaddr *)&servaddr, &len);
-    buffer[n] = '\0';
+    int n = recvfrom(
+        socketFileDescriptor_, 
+        buffer, 
+        sizeof(buffer), 
+        0,
+        (struct sockaddr *)&servaddr, 
+        &len
+    );
+
     return std::string(buffer);
 }

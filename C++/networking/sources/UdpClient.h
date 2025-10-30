@@ -2,15 +2,17 @@
 #include <string>
 #include <netinet/in.h>
 
-class UdpClient {
-public:
-    UdpClient(const std::string &serverIp, int port);
-    ~UdpClient();
+#include "UdpBase.h"
 
-    void sendMessage(const std::string &message);
-    std::string receiveMessage();
+class UdpClient 
+    : UdpBase
+{
+    public:
+        UdpClient(const std::string &serverIp, int port);
 
-private:
-    int sockfd;
-    struct sockaddr_in servaddr;
+        void sendMessage(const std::string &message);
+        std::string receiveMessage();
+
+    private:
+        struct sockaddr_in servaddr;
 };
