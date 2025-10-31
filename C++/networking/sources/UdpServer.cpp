@@ -3,24 +3,23 @@
 #include <cstring>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <thread>
+#include <chrono>
 
 UdpServer::UdpServer() 
 {
-    initialize();
 }
 
 
 UdpServer::UdpServer(int port)
-    : UdpBase(port)
+    : udpSocket_(port)
 {
-    initialize();
 }
 
 
-UdpServer::UdpServer(const std::string &ipAddress, int port)
-    : UdpBase(ipAddress, port)
+UdpServer::UdpServer(const std::string ipAddress, int port)
+    : udpSocket_(ipAddress, port)
 {
-    initialize();
 }
 
 
@@ -33,84 +32,57 @@ UdpServer::~UdpServer()
 void 
 UdpServer::start() 
 {
-    running_ = true;
-    std::cout << "UDP server listening on " << (ipAddress_.has_value() ? ipAddress_.value() : "<any>") << ":" << port_ << std::endl;
+    serverThread_ = std::thread([&]() { listenLoop(); });
+    while (!running_) {} // hold until running  is true
+}
 
-    char buffer[bufferSize_];               // Allocates a buffer of bufferSize_ bytes to store incoming data.
-    socklen_t len = sizeof(clientAddress_); // Length of client address
 
-    while (running_) 
+void 
+UdpServer::listen()
+{
+    Buffer        buffer(bufferSize_); // Allocates a buffer of bufferSize_ bytes to store incoming data.
+    SocketAddress sourceAddress{};
+    auto n = udpSocket_.receiveData(buffer, &sourceAddress);
+    if (n > 0)
     {
-        int n = recvfrom(
-            socketFileDescriptor_,
-            buffer, 
-            sizeof(buffer),
-            0, // No special flags
-            (struct sockaddr *)&clientAddress_, 
-            &len
-        );
-
-        if (n < 0) 
-        {
-            perror("recvfrom error");
-            exit(EXIT_FAILURE);
-        }
-
-        handleClient(buffer, clientAddress_, len);
-        memset(buffer, 0, sizeof(buffer)); // Clear buffer for next message
+        handleClient(buffer, sourceAddress);
+        return;
     }
-}
-
-
-void 
-UdpServer::handleClient(const std::string &message, const sockaddr_in &clientAddr, socklen_t addrLen) 
-{
-    // Convert client address to human-readable form
-    char ipStr[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &(clientAddr.sin_addr), ipStr, INET_ADDRSTRLEN);
-
-    // Convert port to human-readable form
-    uint16_t port = ntohs(clientAddr.sin_port);
-
-    std::cout << "Received from client: " << ipStr << ":" << port << "\n   " << message << std::endl;
-}
-
-
-void 
-UdpServer::initialize()
-{
-    createSocket();
-    createServerAddress();
-    bindSocket();
-}
-
-
-void UdpServer::createServerAddress()
-{
-    memset(&serverAddress_, 0, sizeof(serverAddress_));   // Clear server address structure
-    serverAddress_.sin_family = AF_INET;     // IPv4
-    serverAddress_.sin_port = htons(port_);  // Convert port number to network byte order
-    if (ipAddress_.has_value())
+    if (n < 0 && !noBlocking_)
     {
-        // Binding to a specific IP address
-        inet_pton(AF_INET, ipAddress_->c_str(), &serverAddress_.sin_addr); 
+        perror("Receive failed");
     }
     else
     {
-        // Accept connections from any address
-        serverAddress_.sin_addr.s_addr = INADDR_ANY;   
+        std::this_thread::sleep_for(std::chrono::milliseconds(noBlockingSleepTimeMs_));
     }
 }
 
 
-void UdpServer::bindSocket()
+void 
+UdpServer::listenLoop()
 {
-    // Associates the socket with the specified IP and port.
-    if (bind(socketFileDescriptor_, (const struct sockaddr *)&serverAddress_, sizeof(serverAddress_)) < 0) 
+    auto ipAddr = udpSocket_.getAddress().getIpAddress();
+    auto port   = udpSocket_.getAddress().getPort();
+    std::cout << "UDP server listening on " << (ipAddr.has_value() ? ipAddr.value() : "<any>") << ":" << port << std::endl;
+    running_ = true;
+    while (running_) 
     {
-        perror("Bind failed");
-        close(socketFileDescriptor_); // Close socket on failure
-        exit(EXIT_FAILURE);
+        listen();
+    }
+}
+
+
+void 
+UdpServer::handleClient(const Buffer& buffer, const SocketAddress& clientAddr)
+{
+    if (onReceiveCallback_)
+    {
+        auto responseBuffer = onReceiveCallback_(buffer, clientAddr);
+        if (responseBuffer.size() > 0)
+        {
+            udpSocket_.sendData(responseBuffer, clientAddr);
+        }
     }
 }
 
@@ -121,15 +93,70 @@ UdpServer::stop()
     if (running_) 
     {
         running_ = false;
-        close(socketFileDescriptor_);
+        udpSocket_.closeSocket();
         std::cout << "Server stopped." << std::endl;
+    }
+    if (serverThread_.joinable())
+    {
+        serverThread_.join();
     }
 }
 
 
+/**
+ * @brief Sets a callback function to be called when the server receives data.
+ * 
+ * The callback function is triggered every time a datagram arrives.
+ * It receives the incoming data buffer and the sender's address.
+ * The callback can optionally return a `Buffer` to send a response back to the sender.
+ *
+ * @param callback A function with signature `Buffer(const Buffer&, const SocketAddress&)`
+ *                 that will be called for every received message.
+ *
+ * @note Make sure your callback is thread-safe if the server is running in a separate thread.
+ */
 void 
-UdpServer::sendDataToClient(const char *data, size_t dataSize, const sockaddr_in &clientAddr, socklen_t addrLen)
+UdpServer::setOnReceive(std::function<Buffer(const Buffer&, const SocketAddress&)> callback)
 {
-    sendto(socketFileDescriptor_, data, dataSize, MSG_CONFIRM,
-           (const struct sockaddr *)&clientAddr, addrLen);
+    onReceiveCallback_ = callback;
+}
+
+
+/**
+ * @brief Sets whether the server socket should operate in non-blocking mode.
+ * 
+ * When `noBlocking` is set to `false`:
+ * - The underlying `recvfrom()` call will block the thread until a packet arrives.
+ * - This can cause the program to hang if the server is running in a separate thread.
+ * 
+ * When `noBlocking` is set to `true`:
+ * - `recvfrom()` will return immediately if no data is available.
+ * - You will need to poll in a loop to check for incoming packets.
+ * - To avoid 100% CPU usage, a short sleep is introduced between each poll.
+ * - Set sleep time using `setNoBlockingSleepTime()`.
+ * 
+ * @param noBlocking If true, the socket is non-blocking; if false, it is blocking.
+ */
+void 
+UdpServer::setNoBlocking(bool noBlocking)
+{
+    noBlocking_ = noBlocking; 
+    udpSocket_.setNoBlocking(noBlocking);
+}
+
+
+/**
+ * @brief Sets the sleep time (in milliseconds) for the server loop when using non-blocking mode.
+ * 
+ * When the server socket is in non-blocking mode (`noBlocking == true`), the receive loop
+ * continuously checks for incoming packets. Without a short sleep, this can lead to
+ * 100% CPU usage. This function allows you to configure how long the thread should sleep
+ * between each poll of the socket.
+ *
+ * @param milliSeconds The number of milliseconds to sleep between receive attempts.
+ */
+void 
+UdpServer::setNoBlockingSleepTime(int milliSeconds)
+{
+    noBlockingSleepTimeMs_ = milliSeconds;
 }

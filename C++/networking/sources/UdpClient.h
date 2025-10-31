@@ -2,17 +2,25 @@
 #include <string>
 #include <netinet/in.h>
 
-#include "UdpBase.h"
+#include "UdpSocket.h"
+#include "Buffer.h"
 
 class UdpClient 
-    : UdpBase
 {
     public:
-        UdpClient(const std::string &serverIp, int port);
+        UdpClient(const std::string ipAddress, int port);
 
-        void sendMessage(const std::string &message);
-        std::string receiveMessage();
+        void sendData(const Buffer& buffer);
+        void sendData(const Buffer& buffer, const SocketAddress &destAddr);
+        Buffer receiveData();
+
+        void setReceiverAddress(const std::string ipAddress, int port);
+
+        const SocketAddress& getAddress() const noexcept { return udpSocket_.getAddress(); }
 
     private:
-        struct sockaddr_in servaddr;
+        SocketAddress receiverAddress_{};
+        size_t        bufferSize_{1024};
+
+        UdpSocket udpSocket_;
 };

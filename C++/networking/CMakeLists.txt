@@ -13,34 +13,42 @@ include_directories(${CMAKE_SOURCE_DIR}/sources)
 # Test  executable
 set(UDP_TEST_SOURCES
     MainUdpTest.cpp
-    sources/UdpBase.cpp
+    sources/UdpSocket.cpp
     sources/UdpClient.cpp
     sources/UdpServer.cpp
+    sources/Buffer.cpp
+    sources/SocketAddress.cpp
 )
 add_executable(udp_test ${UDP_TEST_SOURCES})
 
 # Server executable
 set(UDP_SERVER_SOURCES
     MainUdpServer.cpp
-    sources/UdpBase.cpp
+    sources/UdpSocket.cpp
     sources/UdpServer.cpp
+    sources/Buffer.cpp
+    sources/SocketAddress.cpp
 )
 add_executable(udp_server ${UDP_SERVER_SOURCES})
 
 # Client executable
 set(UDP_CLIENT_SOURCES
     MainUdpClient.cpp
-    sources/UdpBase.cpp
+    sources/UdpSocket.cpp
     sources/UdpClient.cpp
+    sources/Buffer.cpp
+    sources/SocketAddress.cpp
 )
 add_executable(udp_client ${UDP_CLIENT_SOURCES})
 
 # Node executable
 set(UDP_NODE_SOURCES
     MainUdpNode.cpp
-    sources/UdpBase.cpp
+    sources/UdpSocket.cpp
     sources/UdpClient.cpp
     sources/UdpServer.cpp
+    sources/Buffer.cpp
+    sources/SocketAddress.cpp
 )
 add_executable(udp_node ${UDP_NODE_SOURCES})
 

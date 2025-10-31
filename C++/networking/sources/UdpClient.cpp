@@ -4,49 +4,38 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-UdpClient::UdpClient(const std::string &serverIp, int port) 
-    : UdpBase(port)
+UdpClient::UdpClient(const std::string ipAddress, int port) 
+    : udpSocket_(ipAddress, port)
 {
-    memset(&servaddr, 0, sizeof(servaddr));
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_port = htons(port);
-
-    if (inet_pton(AF_INET, serverIp.c_str(), &servaddr.sin_addr) <= 0) {
-        perror("Invalid address");
-        close(socketFileDescriptor_);
-        exit(EXIT_FAILURE);
-    }
 }
 
 
 void 
-UdpClient::sendMessage(const std::string &message) 
+UdpClient::sendData(const Buffer& buffer) 
 {
-    sendto(
-        socketFileDescriptor_, 
-        message.c_str(), 
-        message.size(), 
-        0,
-        (const struct sockaddr *)&servaddr, 
-        sizeof(servaddr)
-    );
-    std::cout << "Message sent: " << message << std::endl;
+
+    udpSocket_.sendData(buffer, receiverAddress_);
 }
 
 
-std::string 
-UdpClient::receiveMessage() 
+void 
+UdpClient::sendData(const Buffer &buffer, const SocketAddress &destAddr)
 {
-    char buffer[bufferSize_];
-    socklen_t len = sizeof(servaddr);
-    int n = recvfrom(
-        socketFileDescriptor_, 
-        buffer, 
-        sizeof(buffer), 
-        0,
-        (struct sockaddr *)&servaddr, 
-        &len
-    );
+    udpSocket_.sendData(buffer, destAddr);
+}
 
-    return std::string(buffer);
+
+Buffer
+UdpClient::receiveData() 
+{
+    Buffer buffer(bufferSize_);
+    udpSocket_.receiveData(buffer);
+    return buffer;
+}
+
+
+void 
+UdpClient::setReceiverAddress(const std::string ipAddress, int port)
+{
+    receiverAddress_ = SocketAddress(ipAddress, port);
 }
