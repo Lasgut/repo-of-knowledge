@@ -14,6 +14,10 @@ class UdpSocket
         UdpSocket(int port);
         UdpSocket(const std::string& ipAddress, int port);
         ~UdpSocket();
+        UdpSocket(UdpSocket&&)            noexcept;
+        UdpSocket& operator=(UdpSocket&&) noexcept;
+        UdpSocket(const UdpSocket&)            = delete;
+        UdpSocket& operator=(const UdpSocket&) = delete;
 
         void sendData   (const Buffer& buffer, const SocketAddress &destAddr);
         int  receiveData(Buffer& buffer, SocketAddress* srcAddr = nullptr);
@@ -22,6 +26,7 @@ class UdpSocket
         void closeSocket();
 
         void setNoBlocking(bool enable);
+        void setSocketBufferSize(size_t size);
 
         const SocketAddress& getAddress() const noexcept { return socketAddress_; }
 

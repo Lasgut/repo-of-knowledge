@@ -10,6 +10,28 @@ UdpClient::UdpClient(const std::string ipAddress, int port)
 }
 
 
+UdpClient::UdpClient(UdpClient&& other) noexcept
+    : receiverAddress_(std::move(other.receiverAddress_))
+    , bufferSize_(other.bufferSize_)
+    , udpSocket_(std::move(other.udpSocket_))
+{
+    other.bufferSize_ = 0;
+}
+
+
+UdpClient& UdpClient::operator=(UdpClient&& other) noexcept
+{
+    if (this != &other)
+    {
+        receiverAddress_ = std::move(other.receiverAddress_);
+        bufferSize_ = other.bufferSize_;
+        udpSocket_ = std::move(other.udpSocket_);
+        other.bufferSize_ = 0;
+    }
+    return *this;
+}
+
+
 void 
 UdpClient::sendData(const Buffer& buffer) 
 {

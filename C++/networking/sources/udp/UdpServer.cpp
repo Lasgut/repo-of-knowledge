@@ -32,8 +32,15 @@ UdpServer::~UdpServer()
 void 
 UdpServer::start() 
 {
-    serverThread_ = std::thread([&]() { listenLoop(); });
+    listenThread_ = std::thread([&]() { 
+        pthread_setname_np(pthread_self(), std::string("UDP_SERVER_THREAD: "+name_+" listen").c_str());
+        listenLoop(); 
+    });
     while (!running_) {} // hold until running  is true
+    clientQueueThread_ = std::thread([&]() { 
+        pthread_setname_np(pthread_self(), std::string("UDP_SERVER_THREAD: "+name_+" client handling").c_str());
+        clientHandlerLoop(); 
+    });
 }
 
 
@@ -47,7 +54,7 @@ UdpServer::listen()
     {
         Buffer resizedBuffer(n);
         std::memcpy(resizedBuffer.getPtr(), buffer.getConstPtr(), resizedBuffer.size());
-        handleClient(resizedBuffer, sourceAddress);
+        clientQueue_.push(std::move(resizedBuffer), std::move(sourceAddress));
         return;
     }
     if (n < 0 && !noBlocking_)
@@ -76,6 +83,21 @@ UdpServer::listenLoop()
 
 
 void 
+UdpServer::clientHandlerLoop()
+{
+    while (running_)
+    {
+        Buffer        buffer;
+        SocketAddress sourceAddress;
+        if (clientQueue_.pop(buffer, sourceAddress))
+        {
+            handleClient(buffer, sourceAddress);
+        }
+    }
+}
+
+
+void 
 UdpServer::handleClient(const Buffer& buffer, const SocketAddress& clientAddr)
 {
     if (onReceiveCallback_)
@@ -92,16 +114,14 @@ UdpServer::handleClient(const Buffer& buffer, const SocketAddress& clientAddr)
 void 
 UdpServer::stop() 
 {
-    if (running_) 
+    if (running_)
     {
-        running_ = false;
-        udpSocket_.closeSocket();
         std::cout << "Server stopped." << std::endl;
     }
-    if (serverThread_.joinable())
-    {
-        serverThread_.join();
-    }
+    running_ = false;
+    udpSocket_.closeSocket();
+    if (listenThread_.joinable())        listenThread_.join();
+    if (clientQueueThread_.joinable())   clientQueueThread_.join();
 }
 
 
@@ -161,4 +181,11 @@ void
 UdpServer::setNoBlockingSleepTime(int milliSeconds)
 {
     noBlockingSleepTimeMs_ = milliSeconds;
+}
+
+
+void 
+UdpServer::setName(std::string name)
+{
+    name_ = name;
 }

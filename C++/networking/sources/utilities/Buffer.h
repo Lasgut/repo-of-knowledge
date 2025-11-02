@@ -20,6 +20,7 @@ class Buffer
 
         size_t size() const noexcept { return size_; }
         void   resize(size_t newSize);
+        void   clear();
 
         // Optional: operators for convenience
         Buffer& operator=(Buffer&& other) noexcept;

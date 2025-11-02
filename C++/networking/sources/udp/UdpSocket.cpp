@@ -34,6 +34,30 @@ UdpSocket::~UdpSocket()
 }
 
 
+UdpSocket::UdpSocket(UdpSocket&& other) noexcept
+    : socketFileDescriptor_(other.socketFileDescriptor_)
+    , socketAddress_(std::move(other.socketAddress_))
+{
+    other.socketFileDescriptor_ = -1;
+}
+
+
+UdpSocket& UdpSocket::operator=(UdpSocket&& other) noexcept
+{
+    if (this != &other)
+    {
+        if (socketFileDescriptor_ >= 0)
+            closeSocket();
+
+        socketFileDescriptor_ = other.socketFileDescriptor_;
+        socketAddress_ = std::move(other.socketAddress_);
+
+        other.socketFileDescriptor_ = -1;
+    }
+    return *this;
+}
+
+
 void 
 UdpSocket::sendData(const Buffer& buffer, const SocketAddress& destAddr)
 {
@@ -93,6 +117,17 @@ UdpSocket::setNoBlocking(bool enable)
         fcntl(socketFileDescriptor_, F_SETFL, flags | O_NONBLOCK);
     else
         fcntl(socketFileDescriptor_, F_SETFL, flags & ~O_NONBLOCK);
+}
+
+
+void 
+UdpSocket::setSocketBufferSize(size_t size)
+{
+    int buf = static_cast<int>(size);
+    if (setsockopt(socketFileDescriptor_, SOL_SOCKET, SO_RCVBUF, &buf, sizeof(buf)) != 0)
+    {
+        perror("setsockopt(SO_RCVBUF) failed");
+    }
 }
 
 

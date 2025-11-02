@@ -9,6 +9,10 @@ class UdpClient
 {
     public:
         UdpClient(const std::string ipAddress, int port);
+        UdpClient(UdpClient&&)            noexcept;
+        UdpClient& operator=(UdpClient&&) noexcept;
+        UdpClient(const UdpClient&)            = delete;
+        UdpClient& operator=(const UdpClient&) = delete;
 
         void sendData(const Buffer& buffer);
         void sendData(const Buffer& buffer, const SocketAddress &destAddr);

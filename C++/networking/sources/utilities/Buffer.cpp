@@ -32,6 +32,11 @@ Buffer::resize(size_t newSize)
     size_ = newSize;
 }
 
+void 
+Buffer::clear()
+{
+    std::memset(bufferPtr_, 0, size_);
+}
 
 Buffer &
 Buffer::operator=(Buffer &&other) noexcept

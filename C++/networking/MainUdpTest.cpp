@@ -1,9 +1,10 @@
-#include "UdpServer.h"
-#include "UdpClient.h"
 #include <thread>
 #include <chrono>
 #include <iostream>
 #include <arpa/inet.h>
+
+#include "UdpServer.h"
+#include "UdpClient.h"
 #include "Message.h"
 #include "MessageType.h"
 #include "Serializer.h"
@@ -35,18 +36,20 @@ printSomeSizes(const Message<MsgType>& message, const Buffer& buffer)
 
 
 Buffer 
-serverOnReceiveCallback(const Buffer& buffer, const SocketAddress& clientAddr)
+serverOnReceiveCallback(const Buffer& buffer, const SocketAddress& client1Addr)
 {
     Message<MessageType::TEXT> message;
     message << buffer;
 
     // ##### DEBUG PRINTS #####
     std::cout << "SERVER:" << std::endl;
-    std::cout << "   Receive from: " << (clientAddr.getIpAddress().has_value() ? clientAddr.getIpAddress().value() : "<unknown>") << ":" << clientAddr.getPort() << std::endl;
-    printBufferHex(buffer);
-    printSomeSizes(message, buffer);
+    std::cout << "   Receive from: " << (client1Addr.getIpAddress().has_value() ? client1Addr.getIpAddress().value() : "<unknown>") << ":" << client1Addr.getPort() << std::endl;
+    // printBufferHex(buffer);
+    // printSomeSizes(message, buffer);
     std::cout << "   MESSAGE: " << message.getData().text << std::endl;
     // ##########
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     return {};
 }
 
@@ -54,27 +57,38 @@ serverOnReceiveCallback(const Buffer& buffer, const SocketAddress& clientAddr)
 int main() 
 {
     UdpServer server(8080);
+    server.setBufferSize(30);
+    server.setSocketBufferSize(1);
     server.setNoBlocking(true);
+    server.setNoBlockingSleepTime(1);
     server.setOnReceive(serverOnReceiveCallback);
     server.start();
 
-    // Create client and communicate
-    UdpClient client("127.0.0.1", 8081);
-    client.setReceiverAddress("127.0.0.1", 8080);
+    std::vector<std::pair<UdpClient, Buffer>> clients;
+    for (int i=1; i<=10; i++)
+    {
+        UdpClient client("127.0.0.1", (8080+i));
+        client.setReceiverAddress("127.0.0.1", 8080);
+        MessageData<MessageType::TEXT> data;
+        data.text = std::string("Hello from client")+std::to_string(i)+std::string("!");
+        Message<MessageType::TEXT> message(data);
+        Buffer buffer;
+        buffer << message;
+        clients.emplace_back(std::move(client), std::move(buffer));
+    }
+    // // ##### DEBUG PRINTS #####
+    // std::cout << "client1:" << std::endl;
+    // printSomeSizes(message, buffer1);
+    // std::cout << "   MESSAGE: " << message.getData().text << std::endl;
+    // // ##########
 
-    MessageData<MessageType::TEXT> data;
-    data.text = "Hei from client!";
-    Message<MessageType::TEXT> message(data);
-    Buffer buffer;
-    buffer << message;
-    client.sendData(buffer);
-    // ##### DEBUG PRINTS #####
-    std::cout << "CLIENT:" << std::endl;
-    printSomeSizes(message, buffer);
-    std::cout << "   MESSAGE: " << message.getData().text << std::endl;
-    // ##########
+    for (auto& [client, buffer] : clients)
+    {
+        client.sendData(buffer);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
 
-    std::this_thread::sleep_for(std::chrono::seconds(1)); // Wait for the server to recive and process message
+    std::this_thread::sleep_for(std::chrono::seconds(10)); // Wait for the server to recive and process message
 
     server.stop();
     return 0;
