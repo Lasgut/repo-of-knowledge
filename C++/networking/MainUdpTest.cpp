@@ -58,8 +58,6 @@ int main()
     server.setOnReceive(serverOnReceiveCallback);
     server.start();
 
-    std::this_thread::sleep_for(std::chrono::seconds(1)); // wait for server to start
-
     // Create client and communicate
     UdpClient client("127.0.0.1", 8081);
     client.setReceiverAddress("127.0.0.1", 8080);
@@ -76,7 +74,7 @@ int main()
     std::cout << "   MESSAGE: " << message.getData().text << std::endl;
     // ##########
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::seconds(1)); // Wait for the server to recive and process message
 
     server.stop();
     return 0;
