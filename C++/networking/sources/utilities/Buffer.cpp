@@ -23,7 +23,17 @@ Buffer::Buffer(Buffer &&other) noexcept
 }
 
 
-Buffer&
+void 
+Buffer::resize(size_t newSize)
+{
+    if (newSize == size_) return;
+    delete[] bufferPtr_;
+    bufferPtr_ = new char[newSize];
+    size_ = newSize;
+}
+
+
+Buffer &
 Buffer::operator=(Buffer &&other) noexcept
 {
     if (this != &other) {

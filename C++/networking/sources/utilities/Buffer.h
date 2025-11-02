@@ -18,8 +18,8 @@ class Buffer
         char*       getPtr()      noexcept       { return bufferPtr_; }
         const char* getConstPtr() const noexcept { return bufferPtr_; }
 
-        // Get size
         size_t size() const noexcept { return size_; }
+        void   resize(size_t newSize);
 
         // Optional: operators for convenience
         Buffer& operator=(Buffer&& other) noexcept;

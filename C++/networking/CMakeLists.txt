@@ -1,60 +1,43 @@
-# Minimum CMake version required
 cmake_minimum_required(VERSION 3.10)
 
-# Project name
 project(NetworkingProject VERSION 1.0 LANGUAGES CXX)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-include_directories(${CMAKE_SOURCE_DIR}/sources)
-
-# Test  executable
-set(UDP_TEST_SOURCES
-    MainUdpTest.cpp
-    sources/UdpSocket.cpp
-    sources/UdpClient.cpp
-    sources/UdpServer.cpp
-    sources/Buffer.cpp
-    sources/SocketAddress.cpp
+# Collect all sources recursively from the sources/ directory
+# CONFIGURE_DEPENDS makes CMake re-evaluate when files are added/removed
+file(GLOB_RECURSE UDP_SOURCES
+    CONFIGURE_DEPENDS
+    ${PROJECT_SOURCE_DIR}/sources/*.cpp
 )
-add_executable(udp_test ${UDP_TEST_SOURCES})
 
-# Server executable
-set(UDP_SERVER_SOURCES
-    MainUdpServer.cpp
-    sources/UdpSocket.cpp
-    sources/UdpServer.cpp
-    sources/Buffer.cpp
-    sources/SocketAddress.cpp
-)
-add_executable(udp_server ${UDP_SERVER_SOURCES})
+if(NOT UDP_SOURCES)
+    message(WARNING "No sources found under ${PROJECT_SOURCE_DIR}/sources")
+endif()
 
-# Client executable
-set(UDP_CLIENT_SOURCES
-    MainUdpClient.cpp
-    sources/UdpSocket.cpp
-    sources/UdpClient.cpp
-    sources/Buffer.cpp
-    sources/SocketAddress.cpp
-)
-add_executable(udp_client ${UDP_CLIENT_SOURCES})
+# Create a library from all sources so multiple targets can link to it
+add_library(udp_lib STATIC ${UDP_SOURCES})
 
-# Node executable
-set(UDP_NODE_SOURCES
-    MainUdpNode.cpp
-    sources/UdpSocket.cpp
-    sources/UdpClient.cpp
-    sources/UdpServer.cpp
-    sources/Buffer.cpp
-    sources/SocketAddress.cpp
-)
-add_executable(udp_node ${UDP_NODE_SOURCES})
+# Make headers in sources/ visible to consumers of udp_lib
+target_include_directories(udp_lib PUBLIC ${PROJECT_SOURCE_DIR}/sources/protocol)
+target_include_directories(udp_lib PUBLIC ${PROJECT_SOURCE_DIR}/sources/udp)
+target_include_directories(udp_lib PUBLIC ${PROJECT_SOURCE_DIR}/sources/utilities)
 
-# Link libraries if needed (e.g., pthread for networking)
+# Make sure we have threads for networking code that needs it
 find_package(Threads REQUIRED)
-target_link_libraries(udp_test Threads::Threads)
-target_link_libraries(udp_server Threads::Threads)
-target_link_libraries(udp_client Threads::Threads)
-target_link_libraries(udp_node Threads::Threads)
+target_link_libraries(udp_lib PUBLIC Threads::Threads)
+
+# Add executables that only contain their main files and link the common library
+add_executable(udp_test MainUdpTest.cpp)
+target_link_libraries(udp_test PRIVATE udp_lib)
+
+add_executable(udp_server MainUdpServer.cpp)
+target_link_libraries(udp_server PRIVATE udp_lib)
+
+add_executable(udp_client MainUdpClient.cpp)
+target_link_libraries(udp_client PRIVATE udp_lib)
+
+add_executable(udp_node MainUdpNode.cpp)
+target_link_libraries(udp_node PRIVATE udp_lib)

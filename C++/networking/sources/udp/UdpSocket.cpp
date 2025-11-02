@@ -45,6 +45,7 @@ UdpSocket::sendData(const Buffer& buffer, const SocketAddress& destAddr)
 int
 UdpSocket::receiveData(Buffer& buffer, SocketAddress* srcAddr)
 {
+    // if srcAddr == nullptr
     SocketAddress  tmpAddr{};
     SocketAddress* addrPtr = srcAddr ? srcAddr : &tmpAddr;
     auto           addrLen = addrPtr->getSize();

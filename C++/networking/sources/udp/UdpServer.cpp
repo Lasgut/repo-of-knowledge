@@ -45,7 +45,9 @@ UdpServer::listen()
     auto n = udpSocket_.receiveData(buffer, &sourceAddress);
     if (n > 0)
     {
-        handleClient(buffer, sourceAddress);
+        Buffer resizedBuffer(n);
+        std::memcpy(resizedBuffer.getPtr(), buffer.getConstPtr(), resizedBuffer.size());
+        handleClient(resizedBuffer, sourceAddress);
         return;
     }
     if (n < 0 && !noBlocking_)
