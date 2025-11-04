@@ -21,7 +21,7 @@ endif()
 add_library(udp_lib STATIC ${UDP_SOURCES})
 
 # Make headers in sources/ visible to consumers of udp_lib
-target_include_directories(udp_lib PUBLIC ${PROJECT_SOURCE_DIR}/sources/protocol)
+target_include_directories(udp_lib PUBLIC ${PROJECT_SOURCE_DIR}/sources/interface)
 target_include_directories(udp_lib PUBLIC ${PROJECT_SOURCE_DIR}/sources/udp)
 target_include_directories(udp_lib PUBLIC ${PROJECT_SOURCE_DIR}/sources/utilities)
 

@@ -35,7 +35,7 @@ UdpSocket::~UdpSocket()
 
 
 UdpSocket::UdpSocket(UdpSocket&& other) noexcept
-    : socketFileDescriptor_(other.socketFileDescriptor_)
+    : socketFileDescriptor_(std::move(other.socketFileDescriptor_.load()))
     , socketAddress_(std::move(other.socketAddress_))
 {
     other.socketFileDescriptor_ = -1;
@@ -49,7 +49,7 @@ UdpSocket& UdpSocket::operator=(UdpSocket&& other) noexcept
         if (socketFileDescriptor_ >= 0)
             closeSocket();
 
-        socketFileDescriptor_ = other.socketFileDescriptor_;
+        socketFileDescriptor_ = std::move(other.socketFileDescriptor_.load());
         socketAddress_ = std::move(other.socketAddress_);
 
         other.socketFileDescriptor_ = -1;

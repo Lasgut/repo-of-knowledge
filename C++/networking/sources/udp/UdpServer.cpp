@@ -6,10 +6,6 @@
 #include <thread>
 #include <chrono>
 
-UdpServer::UdpServer() 
-{
-}
-
 
 UdpServer::UdpServer(int port)
     : udpSocket_(port)
@@ -32,13 +28,16 @@ UdpServer::~UdpServer()
 void 
 UdpServer::start() 
 {
+    auto listenThreadName = createThreadName("Lisn");
+    //auto listenThreadName = std::string("UDP_SERVER_THREAD: "+name_+" listen");
     listenThread_ = std::thread([&]() { 
-        pthread_setname_np(pthread_self(), std::string("UDP_SERVER_THREAD: "+name_+" listen").c_str());
+        pthread_setname_np(pthread_self(), listenThreadName.c_str());
         listenLoop(); 
     });
     while (!running_) {} // hold until running  is true
-    clientQueueThread_ = std::thread([&]() { 
-        pthread_setname_np(pthread_self(), std::string("UDP_SERVER_THREAD: "+name_+" client handling").c_str());
+    auto clientQueueThreadName = createThreadName("CliHndlr");
+    clientQueueThread_ = std::thread([&]() {
+        pthread_setname_np(pthread_self(), clientQueueThreadName.c_str());
         clientHandlerLoop(); 
     });
 }
@@ -52,9 +51,11 @@ UdpServer::listen()
     auto n = udpSocket_.receiveData(buffer, &sourceAddress);
     if (n > 0)
     {
-        Buffer resizedBuffer(n);
-        std::memcpy(resizedBuffer.getPtr(), buffer.getConstPtr(), resizedBuffer.size());
-        clientQueue_.push(std::move(resizedBuffer), std::move(sourceAddress));
+        // Buffer resizedBuffer(n);
+        // std::memcpy(resizedBuffer.getPtr(), buffer.getConstPtr(), resizedBuffer.size());
+        // clientQueue_.push(std::move(resizedBuffer), std::move(sourceAddress));
+        buffer.resize(n);
+        clientQueue_.push(std::move(buffer), std::move(sourceAddress));
         return;
     }
     if (n < 0 && !noBlocking_)
@@ -63,7 +64,7 @@ UdpServer::listen()
     }
     else
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(noBlockingSleepTimeMs_));
+        std::this_thread::sleep_for(std::chrono::nanoseconds(noBlockingSleepTimeNs_));
     }
 }
 
@@ -93,6 +94,10 @@ UdpServer::clientHandlerLoop()
         {
             handleClient(buffer, sourceAddress);
         }
+        else
+        {
+            std::this_thread::sleep_for(std::chrono::nanoseconds(clientHandlerSleepTimeNs_));
+        }
     }
 }
 
@@ -108,6 +113,19 @@ UdpServer::handleClient(const Buffer& buffer, const SocketAddress& clientAddr)
             udpSocket_.sendData(responseBuffer, clientAddr);
         }
     }
+}
+
+
+std::string
+UdpServer::createThreadName(const std::string &name)
+{
+    auto threadName = name_+name;
+    if (threadName.size() > 15)
+    {
+        std::cout << "Warning: Thread name '" << threadName << "' is too long, truncating to 15 characters." << std::endl;
+        threadName = threadName.substr(0, 15); // pthread_setname_np limit
+    }
+    return threadName;
 }
 
 
@@ -178,9 +196,16 @@ UdpServer::setNoBlocking(bool noBlocking)
  * @param milliSeconds The number of milliseconds to sleep between receive attempts.
  */
 void 
-UdpServer::setNoBlockingSleepTime(int milliSeconds)
+UdpServer::setNoBlockingSleepTime(int nanoSeconds)
 {
-    noBlockingSleepTimeMs_ = milliSeconds;
+    noBlockingSleepTimeNs_ = nanoSeconds;
+}
+
+
+void 
+UdpServer::setClientHandlerSleepTime(int nanoSeconds)
+{
+    clientHandlerSleepTimeNs_ = nanoSeconds;
 }
 
 

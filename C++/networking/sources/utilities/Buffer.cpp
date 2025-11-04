@@ -4,8 +4,6 @@ Buffer::Buffer(size_t size)
     : size_(size)
     , bufferPtr_(new char[size])
 {
-    // Optional: initialize to zero
-    std::memset(bufferPtr_, 0, size_);
 }
 
 
@@ -27,10 +25,13 @@ void
 Buffer::resize(size_t newSize)
 {
     if (newSize == size_) return;
+    auto* newBufPtr = new char[newSize];
+    std::memcpy(newBufPtr, bufferPtr_, std::min(size_, newSize)); 
     delete[] bufferPtr_;
-    bufferPtr_ = new char[newSize];
+    bufferPtr_ = newBufPtr;
     size_ = newSize;
 }
+
 
 void 
 Buffer::clear()

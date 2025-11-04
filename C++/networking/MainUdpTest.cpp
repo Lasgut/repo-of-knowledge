@@ -14,7 +14,7 @@ printBufferHex(const Buffer& buffer)
 {
     const char* data = buffer.getConstPtr();
     size_t size = buffer.size();
-    std::cout << "   Buffer in HEX: ";
+    std::cout << "   Buffer in HEX:      ";
     for (size_t i = 0; i < size; ++i)
     {
         printf("%02X ", static_cast<unsigned char>(data[i]));
@@ -43,25 +43,30 @@ serverOnReceiveCallback(const Buffer& buffer, const SocketAddress& client1Addr)
 
     // ##### DEBUG PRINTS #####
     std::cout << "SERVER:" << std::endl;
-    std::cout << "   Receive from: " << (client1Addr.getIpAddress().has_value() ? client1Addr.getIpAddress().value() : "<unknown>") << ":" << client1Addr.getPort() << std::endl;
-    // printBufferHex(buffer);
-    // printSomeSizes(message, buffer);
-    std::cout << "   MESSAGE: " << message.getData().text << std::endl;
+    std::cout << "   Receive from:       " << (client1Addr.getIpAddress().has_value() ? client1Addr.getIpAddress().value() : "<unknown>") << ":" << client1Addr.getPort() << std::endl;
+    printBufferHex(buffer);
+    printSomeSizes(message, buffer);
+    std::cout << "   MESSAGE:            " << message.getData().text << std::endl;
     // ##########
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     return {};
 }
 
 
 int main() 
 {
+    pthread_setname_np(pthread_self(), "MainUdpTest");
+
     UdpServer server(8080);
-    server.setBufferSize(30);
+    server.setName("UdpServ");
+    server.setBufferSize(1024);
     server.setSocketBufferSize(1);
     server.setNoBlocking(true);
     server.setNoBlockingSleepTime(1);
+    server.setClientHandlerSleepTime(1);
     server.setOnReceive(serverOnReceiveCallback);
+    server.setMaxQueueMemoryUsage(24*10);
     server.start();
 
     std::vector<std::pair<UdpClient, Buffer>> clients;
@@ -76,19 +81,14 @@ int main()
         buffer << message;
         clients.emplace_back(std::move(client), std::move(buffer));
     }
-    // // ##### DEBUG PRINTS #####
-    // std::cout << "client1:" << std::endl;
-    // printSomeSizes(message, buffer1);
-    // std::cout << "   MESSAGE: " << message.getData().text << std::endl;
-    // // ##########
 
     for (auto& [client, buffer] : clients)
     {
         client.sendData(buffer);
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
     }
 
-    std::this_thread::sleep_for(std::chrono::seconds(10)); // Wait for the server to recive and process message
+    std::this_thread::sleep_for(std::chrono::seconds(1)); // Wait for the server to recive and process message
 
     server.stop();
     return 0;

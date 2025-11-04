@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <optional>
+#include <atomic>
 
 #include "Buffer.h"
 #include "SocketAddress.h"
@@ -34,6 +35,6 @@ class UdpSocket
         void initialize();
         void createSocket();
 
-        int           socketFileDescriptor_{0};
-        SocketAddress socketAddress_{};
+        std::atomic<int> socketFileDescriptor_{0};
+        SocketAddress    socketAddress_{};
 };

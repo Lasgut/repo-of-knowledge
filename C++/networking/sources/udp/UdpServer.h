@@ -13,7 +13,6 @@
 class UdpServer 
 {
     public:
-        UdpServer();
         UdpServer(int port);
         UdpServer(const std::string ipAddress, int port);
         ~UdpServer();
@@ -29,8 +28,10 @@ class UdpServer
         void setBufferSize(size_t size) { bufferSize_ = size; }
         void setSocketBufferSize(size_t size) { udpSocket_.setSocketBufferSize(size); }
         void setNoBlocking(bool noBlocking);
-        void setNoBlockingSleepTime(int milliSeconds); 
+        void setNoBlockingSleepTime(int nanoSeconds);
+        void setClientHandlerSleepTime(int nanoSeconds);
         void setName(std::string name);
+        void setMaxQueueMemoryUsage(int maxBytes) { clientQueue_.setMaxQueueMemoryUsage(maxBytes); }
 
     private:
         void listen();
@@ -38,12 +39,15 @@ class UdpServer
         void clientHandlerLoop();
         void handleClient(const Buffer& buffer, const SocketAddress& clientAddr);
 
+        std::string createThreadName(const std::string& name);
+
         UdpSocket         udpSocket_;
         std::atomic<bool> running_{false};
         bool              noBlocking_{true};
-        int               noBlockingSleepTimeMs_{100};
+        int               noBlockingSleepTimeNs_{1000000};
+        int               clientHandlerSleepTimeNs_{1000000};
         size_t            bufferSize_{1024};
-        std::string       name_;
+        std::string       name_{"unnamed"};
 
         std::thread listenThread_;
         std::thread clientQueueThread_;
