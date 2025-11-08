@@ -10,19 +10,23 @@
 #include "Buffer.h"
 #include "PacketQueue.h"
 
-class UdpServer 
+class UdpNode
 {
     public:
-        UdpServer(int port);
-        UdpServer(const std::string ipAddress, int port);
-        ~UdpServer();
+        UdpNode(int port);
+        UdpNode(const std::string ipAddress, int port);
+        ~UdpNode();
 
-        void start();
-        void stop();
+        void startListening();
+        void stopListening();
+
+        void sendData(const Buffer& buffer);
+        void sendData(const Buffer& buffer, const SocketAddress &destAddr);
 
         void setOnReceive(std::function<Buffer(const Buffer&, const SocketAddress&)> callback);
 
-        const SocketAddress& getAddress() const noexcept { return udpSocket_.getAddress(); }
+        const SocketAddress& getSelfAddress()      const noexcept { return udpSocket_.getAddress(); }
+        const SocketAddress& getReceivingAddress() const noexcept { return receiverAddress_; }
 
         // settings
         void setBufferSize(size_t size) { bufferSize_ = size; }
@@ -32,6 +36,7 @@ class UdpServer
         void setClientHandlerSleepTime(int nanoSeconds);
         void setName(std::string name);
         void setMaxQueueMemoryUsage(int maxBytes) { clientQueue_.setMaxQueueMemoryUsage(maxBytes); }
+        void setReceivingAddress(const std::string& ipAddress, const int port);
 
     private:
         void listen();
@@ -42,7 +47,8 @@ class UdpServer
         std::string createThreadName(const std::string& name);
 
         UdpSocket         udpSocket_;
-        std::atomic<bool> running_{false};
+        SocketAddress     receiverAddress_{};
+        std::atomic<bool> listening_{false};
         bool              noBlocking_{true};
         int               noBlockingSleepTimeNs_{1000000};
         int               clientHandlerSleepTimeNs_{1000000};

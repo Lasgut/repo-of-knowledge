@@ -78,8 +78,17 @@ int main()
         data.text = std::string("Hello from client")+std::to_string(i)+std::string("!");
         Message<MessageType::TEXT> message(data);
         Buffer buffer;
-        buffer << message;
+        std::cout << "DEBUG: buffer size before serialize: " << buffer.size() << std::endl;
+        message >> buffer;
+        std::cout << "DEBUG: buffer size after serialize: " << buffer.size() << std::endl;
         clients.emplace_back(std::move(client), std::move(buffer));
+        // ##### DEBUG PRINTS #####
+        std::cout << "CLIENT:" << std::endl;
+        std::cout << "   Send to:           " << (clients[i-1].first.getReceiverAddress().has_value() ? clients[i-1].first.getReceiverAddress().value() : "<unknown>") << ":" << clients[i-1].first.getReceiverPort() << std::endl;
+        printBufferHex(clients[i-1].second);
+        printSomeSizes(message, clients[i-1].second);
+        std::cout << "   MESSAGE:            " << message.getData().text << std::endl;
+        // ##########
     }
 
     for (auto& [client, buffer] : clients)

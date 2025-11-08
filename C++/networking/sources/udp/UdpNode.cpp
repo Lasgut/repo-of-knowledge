@@ -1,4 +1,4 @@
-#include "UdpServer.h"
+#include "UdpNode.h"
 #include <iostream>
 #include <cstring>
 #include <unistd.h>
@@ -7,34 +7,33 @@
 #include <chrono>
 
 
-UdpServer::UdpServer(int port)
+UdpNode::UdpNode(int port)
     : udpSocket_(port)
 {
 }
 
 
-UdpServer::UdpServer(const std::string ipAddress, int port)
+UdpNode::UdpNode(const std::string ipAddress, int port)
     : udpSocket_(ipAddress, port)
 {
 }
 
 
-UdpServer::~UdpServer() 
+UdpNode::~UdpNode() 
 {
-    stop();
+    stopListening();
 }
 
 
 void 
-UdpServer::start() 
+UdpNode::startListening() 
 {
     auto listenThreadName = createThreadName("Lisn");
-    //auto listenThreadName = std::string("UDP_SERVER_THREAD: "+name_+" listen");
     listenThread_ = std::thread([this, listenThreadName]() { 
         pthread_setname_np(pthread_self(), listenThreadName.c_str());
         listenLoop(); 
     });
-    while (!running_) {} // hold until running  is true
+    while (!listening_) {} // hold until listening_ is true
     auto clientQueueThreadName = createThreadName("CliHndlr");
     clientQueueThread_ = std::thread([this, clientQueueThreadName]() {
         pthread_setname_np(pthread_self(), clientQueueThreadName.c_str());
@@ -44,7 +43,36 @@ UdpServer::start()
 
 
 void 
-UdpServer::listen()
+UdpNode::stopListening() 
+{
+    if (listening_)
+    {
+        std::cout << "Node stopped listening." << std::endl;
+    }
+    listening_ = false;
+    udpSocket_.closeSocket();
+    if (listenThread_.joinable())        listenThread_.join();
+    if (clientQueueThread_.joinable())   clientQueueThread_.join();
+}
+
+
+void 
+UdpNode::sendData(const Buffer& buffer) 
+{
+
+    udpSocket_.sendData(buffer, receiverAddress_);
+}
+
+
+void 
+UdpNode::sendData(const Buffer &buffer, const SocketAddress &destAddr)
+{
+    udpSocket_.sendData(buffer, destAddr);
+}
+
+
+void 
+UdpNode::listen()
 {
     Buffer        buffer(bufferSize_); // Allocates a buffer of bufferSize_ bytes to store incoming data.
     SocketAddress sourceAddress{};
@@ -70,13 +98,13 @@ UdpServer::listen()
 
 
 void 
-UdpServer::listenLoop()
+UdpNode::listenLoop()
 {
     auto ipAddr = udpSocket_.getAddress().getIpAddress();
     auto port   = udpSocket_.getAddress().getPort();
-    std::cout << "UDP server listening on " << (ipAddr.has_value() ? ipAddr.value() : "<any>") << ":" << port << std::endl;
-    running_ = true;
-    while (running_) 
+    std::cout << "UDP node listening on " << (ipAddr.has_value() ? ipAddr.value() : "<any>") << ":" << port << std::endl;
+    listening_ = true;
+    while (listening_) 
     {
         listen();
     }
@@ -84,9 +112,9 @@ UdpServer::listenLoop()
 
 
 void 
-UdpServer::clientHandlerLoop()
+UdpNode::clientHandlerLoop()
 {
-    while (running_)
+    while (listening_)
     {
         Buffer        buffer;
         SocketAddress sourceAddress;
@@ -103,7 +131,7 @@ UdpServer::clientHandlerLoop()
 
 
 void 
-UdpServer::handleClient(const Buffer& buffer, const SocketAddress& clientAddr)
+UdpNode::handleClient(const Buffer& buffer, const SocketAddress& clientAddr)
 {
     if (onReceiveCallback_)
     {
@@ -117,9 +145,9 @@ UdpServer::handleClient(const Buffer& buffer, const SocketAddress& clientAddr)
 
 
 std::string
-UdpServer::createThreadName(const std::string &name)
+UdpNode::createThreadName(const std::string& name)
 {
-    auto threadName = name_+name;
+    auto threadName = name_ + name;
     if (threadName.size() > 15)
     {
         std::cout << "Warning: Thread name '" << threadName << "' is too long, truncating to 15 characters." << std::endl;
@@ -129,22 +157,8 @@ UdpServer::createThreadName(const std::string &name)
 }
 
 
-void 
-UdpServer::stop() 
-{
-    if (running_)
-    {
-        std::cout << "Server stopped." << std::endl;
-    }
-    running_ = false;
-    udpSocket_.closeSocket();
-    if (listenThread_.joinable())        listenThread_.join();
-    if (clientQueueThread_.joinable())   clientQueueThread_.join();
-}
-
-
 /**
- * @brief Sets a callback function to be called when the server receives data.
+ * @brief Sets a callback function to be called when the node receives data.
  * 
  * The callback function is triggered every time a datagram arrives.
  * It receives the incoming data buffer and the sender's address.
@@ -153,21 +167,21 @@ UdpServer::stop()
  * @param callback A function with signature `Buffer(const Buffer&, const SocketAddress&)`
  *                 that will be called for every received message.
  *
- * @note Make sure your callback is thread-safe if the server is running in a separate thread.
+ * @note Make sure your callback is thread-safe if the node is running in a separate thread.
  */
 void 
-UdpServer::setOnReceive(std::function<Buffer(const Buffer&, const SocketAddress&)> callback)
+UdpNode::setOnReceive(std::function<Buffer(const Buffer&, const SocketAddress&)> callback)
 {
     onReceiveCallback_ = callback;
 }
 
 
 /**
- * @brief Sets whether the server socket should operate in non-blocking mode.
+ * @brief Sets whether the node socket should operate in non-blocking mode.
  * 
  * When `noBlocking` is set to `false`:
  * - The underlying `recvfrom()` call will block the thread until a packet arrives.
- * - This can cause the program to hang if the server is running in a separate thread.
+ * - This can cause the program to hang if the node is running in a separate thread.
  * 
  * When `noBlocking` is set to `true`:
  * - `recvfrom()` will return immediately if no data is available.
@@ -178,7 +192,7 @@ UdpServer::setOnReceive(std::function<Buffer(const Buffer&, const SocketAddress&
  * @param noBlocking If true, the socket is non-blocking; if false, it is blocking.
  */
 void 
-UdpServer::setNoBlocking(bool noBlocking)
+UdpNode::setNoBlocking(bool noBlocking)
 {
     noBlocking_ = noBlocking; 
     udpSocket_.setNoBlocking(noBlocking);
@@ -186,9 +200,9 @@ UdpServer::setNoBlocking(bool noBlocking)
 
 
 /**
- * @brief Sets the sleep time (in milliseconds) for the server loop when using non-blocking mode.
+ * @brief Sets the sleep time (in milliseconds) for the node loop when using non-blocking mode.
  * 
- * When the server socket is in non-blocking mode (`noBlocking == true`), the receive loop
+ * When the node socket is in non-blocking mode (`noBlocking == true`), the receive loop
  * continuously checks for incoming packets. Without a short sleep, this can lead to
  * 100% CPU usage. This function allows you to configure how long the thread should sleep
  * between each poll of the socket.
@@ -196,21 +210,28 @@ UdpServer::setNoBlocking(bool noBlocking)
  * @param milliSeconds The number of milliseconds to sleep between receive attempts.
  */
 void 
-UdpServer::setNoBlockingSleepTime(int nanoSeconds)
+UdpNode::setNoBlockingSleepTime(int nanoSeconds)
 {
     noBlockingSleepTimeNs_ = nanoSeconds;
 }
 
 
 void 
-UdpServer::setClientHandlerSleepTime(int nanoSeconds)
+UdpNode::setClientHandlerSleepTime(int nanoSeconds)
 {
     clientHandlerSleepTimeNs_ = nanoSeconds;
 }
 
 
 void 
-UdpServer::setName(std::string name)
+UdpNode::setName(std::string name)
 {
     name_ = name;
+}
+
+
+void 
+UdpNode::setReceivingAddress(const std::string &ipAddress, const int port)
+{
+    receiverAddress_ = SocketAddress(ipAddress, port);
 }

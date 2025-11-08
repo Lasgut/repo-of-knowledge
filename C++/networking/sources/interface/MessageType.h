@@ -7,9 +7,7 @@
 enum class MessageType : uint8_t
 {
     TEXT        = 0x01,
-    BINARY      = 0x02,
-    COMMAND     = 0x03,
-    HEARTBEAT   = 0x04
+    MIX       = 0x02,
 };
 
 
@@ -28,26 +26,41 @@ struct MessageData<MessageType::TEXT>
 {
     static constexpr MessageType type = MessageType::TEXT;
     std::string text;
+
+    template<typename F>
+    void visitFields(F&& f) const {
+        f(text);
+    }
+
+    template<typename F>
+    void visitFields(F&& f) {
+        f(text);
+    }
 };
 
-template<>
-struct MessageData<MessageType::BINARY> 
-{
-    static constexpr MessageType type = MessageType::BINARY;
-    std::vector<uint8_t> binaryVec;
-};
 
 template<>
-struct MessageData<MessageType::COMMAND> 
+struct MessageData<MessageType::MIX> 
 {
-    static constexpr MessageType type = MessageType::COMMAND;
-    uint8_t commandId;
-    std::string parameter;
-};
+    static constexpr MessageType type = MessageType::MIX;
+    std::string text;
+    uint16_t    uint16;
+    uint32_t    uint32;
+    int64_t     int64;
 
-template<>
-struct MessageData<MessageType::HEARTBEAT> 
-{
-    static constexpr MessageType type = MessageType::HEARTBEAT;
-    uint64_t timestamp;
+    template<typename F>
+    void visitFields(F&& f) const {
+        f(text);
+        f(uint16);
+        f(uint32);
+        f(int64);
+    }
+
+    template<typename F>
+    void visitFields(F&& f) {
+        f(text);
+        f(uint16);
+        f(uint32);
+        f(int64);
+    }
 };

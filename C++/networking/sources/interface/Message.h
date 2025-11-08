@@ -19,19 +19,20 @@ public:
     const DataType&    getData()       const noexcept { return body_.data; }
     const MessageType& getType()       const noexcept { return header_.type; }
     const size_t       getHeaderSize() const noexcept { return sizeof(header_.type) + sizeof(header_.bodySize); }
-    const size_t       getBodySize()   const noexcept { return getSerializedSize(body_.data); }
+    const size_t       getBodySize()   const noexcept { return header_.bodySize; }
     const char*        getHeaderPtr()  const noexcept { return reinterpret_cast<const char*>(&header_); }
 
     size_t size() const noexcept;
 
-    friend Buffer& operator<<(Buffer& buffer, Message<MsgType>& message)
+
+    const Message<MsgType>& operator>>(Buffer& buffer)
     {
-        if (buffer.size() != message.size())
+        if (buffer.size() != size())
         {
-            buffer.resize(message.size());
+            buffer.resize(size());
         }
-        serialize(message.getHeaderPtr(), message.getHeaderSize(), message.getData(), buffer);
-        return buffer;
+        serialize(getHeaderPtr(), getHeaderSize(), getData(), buffer);
+        return *this;
     }
 
     Message<MsgType>& operator<<(const Buffer& buffer)
@@ -51,7 +52,7 @@ private:
     struct Header
     {
         MessageType type{MsgType};
-        uint32_t    bodySize{}; // size of the body
+        uint32_t    bodySize{0}; // size of the body
     };
 
     struct Body
@@ -77,7 +78,7 @@ inline Message<MsgType>::Message(const DataType &data)
 {
     body_.data       = data;
     header_.type     = MsgType;
-    header_.bodySize = 0;
+    header_.bodySize = getSerializedSize(body_.data);
 }
 
 

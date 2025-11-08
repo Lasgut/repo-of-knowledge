@@ -61,3 +61,17 @@ UdpClient::setReceiverAddress(const std::string ipAddress, int port)
 {
     receiverAddress_ = SocketAddress(ipAddress, port);
 }
+
+
+std::optional<std::string> 
+UdpClient::getReceiverAddress() const
+{
+    return receiverAddress_.getIpAddress();
+}
+
+
+int 
+UdpClient::getReceiverPort() const
+{
+    return receiverAddress_.getPort();
+}

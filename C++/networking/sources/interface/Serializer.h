@@ -11,46 +11,88 @@
 class Serializer
 {
 protected:
-    template<MessageType MsgType>
-    static void 
-    serialize(const char* headerPtr, size_t headerSize, const MessageData<MsgType>& data, Buffer& buffer)
+    template<typename MsgType>
+    void 
+    serialize(const char* headerPtr, size_t headerSize,
+                          const MsgType& data, Buffer& buffer)
     {
-        // --- Serialize header ---
-        size_t offset = 0;
-        //const size_t headerSize = sizeof(MessageType) + sizeof(uint32_t);
-        std::memcpy(buffer.getPtr() + offset, headerPtr, headerSize);
+        int offset = 0;
+        std::memcpy(buffer.getPtr(), headerPtr, headerSize);
         offset += headerSize;
 
-        // --- Serialize body based on message type ---
-        serializeData(data, buffer, offset);
+        data.visitFields([&](auto& field) {
+            serializeValue(field, buffer, offset);
+        });
     }
 
-    template<MessageType MsgType>
-    static void 
-    deserialize(const Buffer& buffer, MessageData<MsgType>& data, size_t headerSize)
+    template<typename MsgType>
+    void 
+    deserialize(const Buffer& buffer, MsgType& data, size_t headerSize)
     {
-        deserializeData(data, buffer, headerSize);
+        int offset = headerSize;
+        data.visitFields([&](auto& field) {
+            deserializeValue(field, buffer, offset);
+        });
     }
 
-    static size_t 
-    getSerializedSize(const MessageData<MessageType::TEXT>& data)
+    template<typename MsgType>
+    size_t 
+    getSerializedSize(const MsgType& data)
     {
-        return data.text.size();
+        int size = 0;
+        data.visitFields([&](auto& field) {
+            getValueSize(field, size);
+        });
+        return size;
     }
 
 private:
-    // --- TEXT ---
-    static void 
-    serializeData(const MessageData<MessageType::TEXT>& data, Buffer& buffer, size_t offset)
+    // --- std::string ---
+    void 
+    serializeValue(const std::string& value, Buffer& buffer, int& offset)
     {
-        auto len = getSerializedSize(data);
-        std::memcpy(buffer.getPtr() + offset, data.text.data(), len);
+        auto len = value.size();
+        std::memcpy(buffer.getPtr() + offset, value.data(), len);
+        offset += len;
     }
 
-    static void 
-    deserializeData(MessageData<MessageType::TEXT>& data, const Buffer& buffer, size_t offset)
+    void 
+    deserializeValue(std::string& value, const Buffer& buffer, int& offset)
     {
         size_t len = buffer.size() - offset;
-        data.text.assign(buffer.getConstPtr() + offset, len);
+        value.assign(buffer.getConstPtr() + offset, len);
+        offset += len;
     }
+
+    void 
+    getValueSize(const std::string& value, int& size)
+    {
+        size += value.size();
+    }
+    // --------------------
+
+    // --- General ---
+    template<typename T>
+    void 
+    serializeValue(const T& value, Buffer& buffer, int& offset)
+    {
+        std::memcpy(buffer.getPtr() + offset, &value, sizeof(value));
+        offset += sizeof(value);
+    }   
+
+    template<typename T>
+    void 
+    deserializeValue(T& value, const Buffer& buffer, int& offset)
+    {
+        std::memcpy(&value, buffer.getConstPtr() + offset, sizeof(value));
+        offset += sizeof(value);
+    }
+
+    template<typename T>
+    void 
+    getValueSize(const T& value, int& size)
+    {
+        size += sizeof(value);
+    }
+    // --------------------
 };

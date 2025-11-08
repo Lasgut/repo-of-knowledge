@@ -20,6 +20,9 @@ class UdpClient
 
         void setReceiverAddress(const std::string ipAddress, int port);
 
+        std::optional<std::string> getReceiverAddress() const;
+        int                        getReceiverPort()    const;
+
         const SocketAddress& getAddress() const noexcept { return udpSocket_.getAddress(); }
 
     private:
